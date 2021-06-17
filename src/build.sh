@@ -86,6 +86,11 @@ function kernel_build()
     exit 125 # ECANCELED
   fi
 
+  if [ -f "$(join_path "$PWD" '.config')" ]; then
+    local mkflag=${flag:-'SILENT'}
+    cmd_manager "$mkflag" 'make olddefconfig &> /dev/null'
+  fi
+
   if [ -x "$(command -v nproc)" ]; then
     parallel_cores=$(nproc --all)
   else
