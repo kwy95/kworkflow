@@ -23,6 +23,9 @@ declare -gr email_regex='[A-Za-z0-9_\.-]+@[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)+'
 #shellcheck disable=SC2119
 function mail_main()
 {
+  # Para habilitar grupos, usar arquivos dentro de uma pasta de config do kw,
+  # cada arquivo tem o nome do grupo e contém a lista de emails do grupo,
+  # aproveitar isso pra usar o (to|cc)_cmd
   if [[ "$1" =~ -h|--help ]]; then
     mail_help "$1"
     exit 0
@@ -169,6 +172,7 @@ function validate_email_list()
 # The count of how many patches were created
 function pre_generate_patches()
 {
+  # usar esses patches
   local commit_range="$1"
   local version="$2"
   local patch_cache="${KW_CACHE_DIR}/patches"
@@ -217,6 +221,7 @@ function generate_kernel_recipients()
 
   mkdir -p "${patch_cache}/to/" "${patch_cache}/cc/"
 
+  # usar esses nomes de arquivo
   for patch_path in "${patch_cache}/"*; do
     if ! is_a_patch "$patch_path"; then
       continue
