@@ -94,7 +94,7 @@ function mail_send()
   local patch_count=0
   local cmd='git send-email'
 
-  flag=${flag:-'SILENT'}
+  flag=${flag:-'WARNING'}
 
   [[ -n "$dryrun" ]] && cmd+=" $dryrun"
 
@@ -891,7 +891,7 @@ function reposition_commit_count_arg()
     fi
     [[ "$1" =~ ^--$ ]] && dash_dash=1
     # The added quotes ensure arguments are correctly separated
-    options="$options \"$1\""
+    options="$options ${1@Q}"
     shift
   done
 
@@ -919,9 +919,13 @@ function parse_mail_options()
   long_options+='email:,name:,'
   long_options+='smtpuser:,smtpencryption:,smtpserver:,smtpserverport:,smtppass:,'
 
+  printf '  - %s\n' "$@" 1>&2
+
   # This is a pre parser to handle commit count arguments
   options="$(reposition_commit_count_arg "$@")"
   eval "set -- $options"
+
+  printf '  + %s\n' "$@" 1>&2
 
   options="$(kw_parse "$short_options" "$long_options" "$@")"
   if [[ "$?" != 0 ]]; then
@@ -931,6 +935,8 @@ function parse_mail_options()
   fi
 
   eval "set -- $options"
+
+  printf '  * %s\n' "$@" 1>&2
 
   # Default values
   options_values['SEND']=''
@@ -1057,14 +1063,20 @@ function parse_mail_options()
           commit_count="${BASH_REMATCH[0]}"
           options_values['COMMIT_RANGE']+="$commit_count "
         fi
-        for i in "$@"; do
-          if [[ "${i}" =~ " " ]]; then
-            pass_option_to_send_email+=" ${i@Q}"
-          else
-            pass_option_to_send_email+=" ${i}"
-          fi
-        done
-        options_values['PASS_OPTION_TO_SEND_EMAIL']="$(str_strip "$pass_option_to_send_email ${options_values['PATCH_VERSION']}")"
+        # (declare IFS=$'\n'; printf '  - %s\n' "$*" 1>&2)
+        # printf '  + %s\n' "$@" 1>&2
+        # printf '  * %s\n' "${@@Q}" 1>&2
+        # for i in "$@"; do
+        #   printf '  + %s\n' "$i" 1>&2
+        #   if [[ "${i}" =~ ' ' ]]; then
+        #     pass_option_to_send_email+=" ${i@Q}"
+        #   else
+        #     pass_option_to_send_email+=" ${i}"
+        #   fi
+        # done
+        # options_values['PASS_OPTION_TO_SEND_EMAIL']="$(str_strip "$pass_option_to_send_email ${options_values['PATCH_VERSION']}")"
+        # options_values['PASS_OPTION_TO_SEND_EMAIL']="$(str_strip "$* ${options_values['PATCH_VERSION']}")"
+        options_values['PASS_OPTION_TO_SEND_EMAIL']="$* ${options_values['PATCH_VERSION']}"
         options_values['COMMIT_RANGE']+="$(find_commit_references "${options_values['PASS_OPTION_TO_SEND_EMAIL']}")"
         rev_ret="$?"
         shift "$#"
