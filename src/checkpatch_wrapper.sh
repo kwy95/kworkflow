@@ -8,7 +8,7 @@ include "${KW_LIB_DIR}/lib/kwlib.sh"
 # Runs checkpatch in the given path, which might be a file or directory.
 #
 # @FILE_OR_DIR_CHECK Target path for running checkpatch script
-function execute_checkpatch()
+function codestyle_main()
 {
   local FILE_OR_DIR_CHECK="$1"
   local flag="$2"
