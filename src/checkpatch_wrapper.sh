@@ -5,15 +5,20 @@
 include "${KW_LIB_DIR}/lib/kw_config_loader.sh"
 include "${KW_LIB_DIR}/lib/kwlib.sh"
 
+declare -gA options_values
+
 # Runs checkpatch in the given path, which might be a file or directory.
 #
 # @FILE_OR_DIR_CHECK Target path for running checkpatch script
 function codestyle_main()
 {
-  local FILE_OR_DIR_CHECK="$1"
   local flag="$2"
+  local options="${configurations[checkpatch_opts]}"
+  local -r original_working_dir="$PWD"
+  local kernel_root
+  local cmd_script
 
-  if [[ "$FILE_OR_DIR_CHECK" =~ ^-h|^--help ]]; then
+  if [[ "$1" =~ ^-h|^--help ]]; then
     codestyle_help "$1"
     return 0
   fi
@@ -21,25 +26,17 @@ function codestyle_main()
   # output. It could be nice if we can add another option just for this sort
   # of check.
 
-  local options="${configurations[checkpatch_opts]}"
-  local -r original_working_dir="$PWD"
-  local kernel_root
-  local cmd_script
-
-  FILE_OR_DIR_CHECK=${FILE_OR_DIR_CHECK:-'.'}
-  flag=${flag:-'SILENT'}
-
-  # Check if is a valid path
-  if [[ ! -d "$FILE_OR_DIR_CHECK" && ! -f "$FILE_OR_DIR_CHECK" ]]; then
-    complain 'Invalid path'
-    return 2 # ENOENT
+  parse_codestyle_options "$@"
+  if [[ "$?" -gt 0 ]]; then
+    complain "${options_values['ERROR']}"
+    codestyle_help
+    return 22 # EINVAL
   fi
 
-  # Get realpath for using inside checkpatch
-  FILE_OR_DIR_CHECK="$(realpath "$FILE_OR_DIR_CHECK")"
+  flag=${flag:-'SILENT'}
 
   # Try to find kernel root at given path
-  kernel_root="$(find_kernel_root "$FILE_OR_DIR_CHECK")"
+  kernel_root="$(find_kernel_root "${options_values['PATH']}")"
   if [[ -z "$kernel_root" ]]; then
     # Fallback: try to find kernel root at working path
     kernel_root="$(find_kernel_root "$original_working_dir")"
@@ -52,14 +49,14 @@ function codestyle_main()
   fi
 
   # Build a list of file to apply check patch
-  FLIST=$(find "$FILE_OR_DIR_CHECK" -type f ! -name '*\.mod\.c' | grep "\.[ch]$")
+  FLIST=$(find "${options_values['PATH']}" -type f ! -name '*\.mod\.c' | grep "\.[ch]$")
 
-  say "Running checkpatch.pl on: $FILE_OR_DIR_CHECK"
+  say "Running checkpatch.pl on: ${options_values['PATH']}"
   say "$SEPARATOR"
 
   # Define different rules for patch and files
-  if is_a_patch "$FILE_OR_DIR_CHECK"; then
-    FLIST="$FILE_OR_DIR_CHECK"
+  if is_a_patch "${options_values['PATH']}"; then
+    FLIST="${options_values['PATH']}"
   else
     options="--terse $options --file"
   fi
@@ -81,6 +78,22 @@ function codestyle_main()
 
     cd "$original_working_dir" || exit_msg 'It was not possible to move back from kernel dir'
   done
+}
+
+function parse_codestyle_options()
+{
+  local file_or_dir_check="$1"
+
+  file_or_dir_check="${file_or_dir_check:-'.'}"
+
+  # Check if is a valid path
+  if [[ ! -d "$file_or_dir_check" && ! -f "$file_or_dir_check" ]]; then
+    options_values['ERROR']='Invalid path'
+    return 2 # ENOENT
+  fi
+
+  # Get realpath for using inside checkpatch
+  options_values['PATH']="$(realpath "$file_or_dir_check")"
 }
 
 function codestyle_help()
